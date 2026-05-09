@@ -1,0 +1,184 @@
+{
+  "name": "Sheldon — 1. New Enrollment",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-enrollment",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": false,
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "webhook-new-enrollment",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "sheldon-new-enrollment"
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Build the exact payload that goes into Airtable Create. Map Automatically uses these field names.\nconst item = $input.first();\nconst rawBody = (item.json && item.json.body) ? item.json.body : item.json;\nconst body = rawBody || {};\n\nconst safe = (v, fb = '') => (v === undefined || v === null) ? fb : String(v).trim();\nconst num = (v, fb = 0) => { const n = Number(v); return Number.isFinite(n) ? n : fb; };\n\n// 16-char alphanumeric token (lowercase). Always exactly 16 chars; never breaks URLs.\nconst token = (Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10))\n  .toLowerCase().replace(/[^a-z0-9]/g, '').padEnd(16, 'x').substring(0, 16);\n\nreturn [{\n  json: {\n    magic_token: token,\n    student_name: safe(body.student_name, 'Unknown'),\n    parent_name: safe(body.parent_name, 'Parent'),\n    parent_whatsapp: safe(body.parent_whatsapp).replace(/\\s+/g, ''),\n    parent_email: safe(body.parent_email).toLowerCase(),\n    course: safe(body.course, 'Maths'),\n    classes_count: num(body.classes_count, 1),\n    amount: num(body.amount, 0),\n    currency: safe(body.currency, 'INR'),\n    sales_agent: safe(body.sales_agent, 'Unknown'),\n    lead_source: safe(body.lead_source, 'Other'),\n    sale_type: safe(body.sale_type, 'New sale'),\n    demo_tutor: safe(body.demo_tutor, ''),\n    preferred_timing: safe(body.preferred_timing, ''),\n    status: 'Pending',\n    whatsapp_sent: false,\n    email_sent: false,\n    parent_confirmed: false,\n    meet_created: false\n  }\n}];"
+      },
+      "id": "code-prep-create",
+      "name": "Prep create",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "mode": "list",
+          "value": "app6o2dh6wgXwGYwr"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Enrollments"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "id": "airtable-create-enrollment",
+      "name": "Airtable: Create Enrollment",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [640, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500
+    },
+    {
+      "parameters": {
+        "from": "whatsapp:+14155238886",
+        "to": "=whatsapp:{{ $('Prep create').item.json.parent_whatsapp }}",
+        "toWhatsapp": true,
+        "message": "=Hi {{ $('Prep create').item.json.parent_name }}! 🎉\n\nWelcome to Super Sheldon. We've received your payment for {{ $('Prep create').item.json.student_name }}'s {{ $('Prep create').item.json.course }} classes.\n\nTap to confirm your tutor and class timing:\nhttp://localhost:3000/confirm/{{ $('Prep create').item.json.magic_token }}\n\n— Team Super Sheldon",
+        "options": {}
+      },
+      "id": "twilio-send-whatsapp",
+      "name": "Twilio: Send WhatsApp",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [860, 300],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Prep create').item.json.parent_email }}",
+        "subject": "=Welcome to Super Sheldon — confirm your class for {{ $('Prep create').item.json.student_name }}",
+        "emailType": "html",
+        "message": "=<div style=\"font-family:Inter,system-ui,sans-serif;max-width:560px;margin:0 auto;color:#2A2E36;\"><div style=\"background:#FF6B1F;padding:24px;border-radius:16px 16px 0 0;color:white\"><h1 style=\"margin:0;font-family:'Plus Jakarta Sans',sans-serif;font-size:24px\">Welcome to Super Sheldon 🎉</h1></div><div style=\"background:white;border:1px solid #E5E8EE;border-top:none;padding:24px;border-radius:0 0 16px 16px\"><p>Hi {{ $('Prep create').item.json.parent_name }},</p><p>We've received your payment for <b>{{ $('Prep create').item.json.student_name }}</b>'s <b>{{ $('Prep create').item.json.course }}</b> classes ({{ $('Prep create').item.json.classes_count }} sessions).</p><p>Tap below to pick your tutor and starting time:</p><p style=\"text-align:center;margin:24px 0\"><a href=\"http://localhost:3000/confirm/{{ $('Prep create').item.json.magic_token }}\" style=\"background:#FF6B1F;color:white;padding:12px 24px;border-radius:9999px;text-decoration:none;font-weight:600;display:inline-block\">Confirm my class →</a></p><p style=\"color:#5B6271;font-size:14px;margin-top:24px\">— Team Super Sheldon</p></div></div>",
+        "options": {}
+      },
+      "id": "gmail-send-welcome",
+      "name": "Gmail: Send welcome",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1080, 300],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Build minimal payload for the Update node — only the 3 fields we want to change, plus id for matching.\nconst createOut = $('Airtable: Create Enrollment').first().json;\nconst recordId = createOut && createOut.id;\nif (!recordId) {\n  throw new Error('Airtable Create did not return a record id');\n}\nreturn [{ json: { id: recordId, whatsapp_sent: true, email_sent: true, status: 'Notified' } }];"
+      },
+      "id": "code-prep-update",
+      "name": "Prep update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "mode": "list",
+          "value": "app6o2dh6wgXwGYwr"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Enrollments"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": ["id"],
+          "schema": []
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "id": "airtable-update-sent",
+      "name": "Airtable: Mark sent",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [1520, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, magic_token: $('Prep create').item.json.magic_token, enrollment_id: $('Airtable: Create Enrollment').item.json.id } }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Access-Control-Allow-Methods", "value": "POST, OPTIONS" },
+              { "name": "Access-Control-Allow-Headers", "value": "Content-Type" }
+            ]
+          }
+        }
+      },
+      "id": "respond-success",
+      "name": "Respond: Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1740, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Prep create", "type": "main", "index": 0 }]] },
+    "Prep create": { "main": [[{ "node": "Airtable: Create Enrollment", "type": "main", "index": 0 }]] },
+    "Airtable: Create Enrollment": { "main": [[{ "node": "Twilio: Send WhatsApp", "type": "main", "index": 0 }]] },
+    "Twilio: Send WhatsApp": { "main": [[{ "node": "Gmail: Send welcome", "type": "main", "index": 0 }]] },
+    "Gmail: Send welcome": { "main": [[{ "node": "Prep update", "type": "main", "index": 0 }]] },
+    "Prep update": { "main": [[{ "node": "Airtable: Mark sent", "type": "main", "index": 0 }]] },
+    "Airtable: Mark sent": { "main": [[{ "node": "Respond: Success", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true
+  },
+  "versionId": "3",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [{ "name": "sheldon" }]
+}

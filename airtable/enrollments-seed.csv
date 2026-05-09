@@ -1,0 +1,2 @@
+magic_token,student_name,parent_name,parent_whatsapp,parent_email,course,classes_count,amount,currency,sales_agent,lead_source,sale_type,demo_tutor,preferred_timing,status,whatsapp_sent,email_sent,parent_confirmed,meet_created,selected_slot_datetime,meet_link
+sample123abc456,Aarav Sharma,Rohit Sharma,+919876543210,rohit@example.com,Maths,12,5400,INR,Demo Agent,Instagram,New sale,Sannya Gupta,Weekdays 5-7 PM,Pending,false,false,false,false,,

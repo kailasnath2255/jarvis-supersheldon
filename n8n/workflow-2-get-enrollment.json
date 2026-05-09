@@ -1,0 +1,245 @@
+{
+  "name": "Sheldon — 2. Get Enrollment by Token",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-enrollment",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "webhook-get-enrollment",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300],
+      "webhookId": "sheldon-get-enrollment"
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Read + sanitize the token from the query string. Empty token short-circuits to a not-found response.\nconst item = $input.first();\nconst raw = (item.json && item.json.query && item.json.query.token) || (item.json && item.json.token) || '';\nconst token = String(raw).trim().replace(/[^a-z0-9]/gi, '').toLowerCase().substring(0, 64);\nreturn [{ json: { token, has_token: token.length > 0 } }];"
+      },
+      "id": "code-read-token",
+      "name": "Read token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "mode": "list",
+          "value": "app6o2dh6wgXwGYwr"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Enrollments"
+        },
+        "filterByFormula": "={magic_token} = '{{ $json.token }}'",
+        "options": {
+          "limit": 1
+        }
+      },
+      "id": "airtable-find-enrollment",
+      "name": "Airtable: Find Enrollment",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [660, 300],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "found",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-found",
+      "name": "Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "mode": "list",
+          "value": "app6o2dh6wgXwGYwr"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Tutors"
+        },
+        "options": {
+          "limit": 50
+        }
+      },
+      "id": "airtable-list-tutors",
+      "name": "Airtable: List Tutors",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [1100, 220],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1500
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "mode": "list",
+          "value": "app6o2dh6wgXwGYwr"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "AvailableSlots"
+        },
+        "filterByFormula": "AND(NOT({is_booked}), IS_AFTER({slot_datetime}, NOW()))",
+        "sort": {
+          "property": [
+            { "field": "slot_datetime", "direction": "asc" }
+          ]
+        },
+        "options": {
+          "limit": 200
+        }
+      },
+      "id": "airtable-list-slots",
+      "name": "Airtable: List Slots",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [1100, 380],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1500
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Defensive shaping: handle missing fields, missing tutors, missing slots without crashing.\nconst pickFields = (rec) => (rec && rec.fields) ? rec.fields : (rec || {});\nconst pickId = (rec) => (rec && (rec.id || rec.recordId)) || '';\n\nconst enrollmentRec = $('Airtable: Find Enrollment').first() && $('Airtable: Find Enrollment').first().json;\nconst e = pickFields(enrollmentRec);\n\nconst tutorRecs = $('Airtable: List Tutors').all().map(i => i.json).filter(t => t && (t.id || t.fields));\nconst slotRecs = $('Airtable: List Slots').all().map(i => i.json).filter(s => s && (s.id || s.fields));\n\nconst available_tutors = tutorRecs.map(t => {\n  const tf = pickFields(t);\n  const tutorId = pickId(t);\n  const tutorSlots = slotRecs\n    .filter(s => {\n      const linked = (pickFields(s).tutor) || [];\n      return Array.isArray(linked) ? linked.includes(tutorId) : linked === tutorId;\n    })\n    .map(s => ({\n      id: pickId(s),\n      datetime: pickFields(s).slot_datetime || ''\n    }))\n    .filter(s => s.id && s.datetime);\n  return {\n    id: tutorId,\n    name: tf.name || 'Tutor',\n    subjects: Array.isArray(tf.subjects) ? tf.subjects : (tf.subjects ? [tf.subjects] : []),\n    available_slots: tutorSlots\n  };\n}).filter(t => t.id && t.available_slots.length > 0);\n\nreturn [{\n  json: {\n    student_name: e.student_name || '',\n    parent_name: e.parent_name || '',\n    course: e.course || '',\n    classes_count: Number(e.classes_count) || 0,\n    amount: Number(e.amount) || 0,\n    currency: e.currency || 'INR',\n    demo_tutor: e.demo_tutor || '',\n    available_tutors\n  }\n}];"
+      },
+      "id": "code-shape-response",
+      "name": "Shape response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Access-Control-Allow-Methods", "value": "GET, OPTIONS" },
+              { "name": "Access-Control-Allow-Headers", "value": "Content-Type" },
+              { "name": "Cache-Control", "value": "no-store" }
+            ]
+          }
+        }
+      },
+      "id": "respond-ok",
+      "name": "Respond: OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1540, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: 'not_found' } }}",
+        "options": {
+          "responseCode": 404,
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Access-Control-Allow-Methods", "value": "GET, OPTIONS" },
+              { "name": "Access-Control-Allow-Headers", "value": "Content-Type" }
+            ]
+          }
+        }
+      },
+      "id": "respond-not-found",
+      "name": "Respond: 404",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1100, 540]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Read token", "type": "main", "index": 0 }]]
+    },
+    "Read token": {
+      "main": [[{ "node": "Airtable: Find Enrollment", "type": "main", "index": 0 }]]
+    },
+    "Airtable: Find Enrollment": {
+      "main": [[{ "node": "Found?", "type": "main", "index": 0 }]]
+    },
+    "Found?": {
+      "main": [
+        [
+          { "node": "Airtable: List Tutors", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Respond: 404", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Airtable: List Tutors": {
+      "main": [[{ "node": "Airtable: List Slots", "type": "main", "index": 0 }]]
+    },
+    "Airtable: List Slots": {
+      "main": [[{ "node": "Shape response", "type": "main", "index": 0 }]]
+    },
+    "Shape response": {
+      "main": [[{ "node": "Respond: OK", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true
+  },
+  "versionId": "2",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [{ "name": "sheldon" }]
+}

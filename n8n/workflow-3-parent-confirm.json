@@ -1,0 +1,368 @@
+{
+  "name": "Sheldon — 3. Parent Confirmation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "parent-confirm",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "webhook-parent-confirm",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "sheldon-parent-confirm"
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const item = $input.first();\nconst rawBody = (item.json && item.json.body) ? item.json.body : item.json;\nconst body = rawBody || {};\nconst safe = (v, fb = '') => (v === undefined || v === null) ? fb : String(v).trim();\nconst token = safe(body.magic_token).replace(/[^a-z0-9]/gi, '').toLowerCase().substring(0, 64);\nconst tutorId = safe(body.selected_tutor_id);\nconst slotId = safe(body.selected_slot_id);\nif (!token || !tutorId || !slotId) {\n  throw new Error('Missing required fields: magic_token, selected_tutor_id, or selected_slot_id');\n}\nreturn [{ json: { magic_token: token, selected_tutor_id: tutorId, selected_slot_id: slotId } }];"
+      },
+      "id": "code-parse-body",
+      "name": "Parse body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "mode": "list",
+          "value": "app6o2dh6wgXwGYwr"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Enrollments"
+        },
+        "filterByFormula": "={magic_token} = '{{ $json.magic_token }}'",
+        "options": { "limit": 1 }
+      },
+      "id": "airtable-find-enrollment",
+      "name": "Airtable: Find Enrollment",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [640, 300],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "base": {
+          "__rl": true,
+          "mode": "list",
+          "value": "app6o2dh6wgXwGYwr"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Tutors"
+        },
+        "id": "={{ $('Parse body').item.json.selected_tutor_id }}",
+        "options": {}
+      },
+      "id": "airtable-get-tutor",
+      "name": "Airtable: Get Tutor",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [860, 300],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1500
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "base": {
+          "__rl": true,
+          "mode": "list",
+          "value": "app6o2dh6wgXwGYwr"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "AvailableSlots"
+        },
+        "id": "={{ $('Parse body').item.json.selected_slot_id }}",
+        "options": {}
+      },
+      "id": "airtable-get-slot",
+      "name": "Airtable: Get Slot",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [1080, 300],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1500
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Centralize all derived data: end time, attendees, formatted slot.\nconst slot = $('Airtable: Get Slot').first().json || {};\nconst slotFields = slot.fields || slot || {};\nconst tutor = $('Airtable: Get Tutor').first().json || {};\nconst tutorFields = tutor.fields || tutor || {};\nconst enrollment = $('Airtable: Find Enrollment').first().json || {};\nconst enrollmentFields = enrollment.fields || enrollment || {};\n\nif (!enrollment.id) throw new Error('Enrollment not found for token');\nif (!slotFields.slot_datetime) throw new Error('Selected slot has no datetime');\n\nconst startMs = new Date(slotFields.slot_datetime).getTime();\nif (!Number.isFinite(startMs)) throw new Error('Selected slot datetime is invalid');\n\nconst startIso = new Date(startMs).toISOString();\nconst endIso = new Date(startMs + 60 * 60 * 1000).toISOString();\n\nconst attendees = [enrollmentFields.parent_email, tutorFields.email]\n  .filter(Boolean).map(e => String(e).trim()).filter(Boolean);\n\nconst pad = (n) => String(n).padStart(2, '0');\nconst formatNice = (iso) => {\n  const d = new Date(iso);\n  if (!Number.isFinite(d.getTime())) return iso;\n  const date = d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });\n  const h24 = d.getHours();\n  const h12 = ((h24 + 11) % 12) + 1;\n  const ampm = h24 >= 12 ? 'PM' : 'AM';\n  return `${date} · ${h12}:${pad(d.getMinutes())} ${ampm}`;\n};\n\nreturn [{\n  json: {\n    enrollment_id: enrollment.id,\n    tutor_id: tutor.id || $('Parse body').first().json.selected_tutor_id,\n    slot_id: slot.id || $('Parse body').first().json.selected_slot_id,\n    student_name: enrollmentFields.student_name || '',\n    parent_name: enrollmentFields.parent_name || '',\n    parent_email: enrollmentFields.parent_email || '',\n    parent_whatsapp: enrollmentFields.parent_whatsapp || '',\n    course: enrollmentFields.course || '',\n    tutor_name: tutorFields.name || 'Tutor',\n    tutor_email: tutorFields.email || '',\n    slot_start: startIso,\n    slot_end: endIso,\n    slot_pretty: formatNice(startIso),\n    attendees\n  }\n}];"
+      },
+      "id": "code-prepare-data",
+      "name": "Prepare data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "calendar": {
+          "__rl": true,
+          "mode": "list",
+          "value": "primary"
+        },
+        "start": "={{ $json.slot_start }}",
+        "end": "={{ $json.slot_end }}",
+        "additionalFields": {
+          "summary": "=Super Sheldon: {{ $json.course }} — {{ $json.student_name }}",
+          "description": "=Tutor: {{ $json.tutor_name }}\nStudent: {{ $json.student_name }}\nCourse: {{ $json.course }}",
+          "attendeesUi": {
+            "values": "={{ $json.attendees.map(email => ({ email })) }}"
+          },
+          "conferenceDataUi": {
+            "createRequestUi": {
+              "conferenceSolutionType": "hangoutsMeet"
+            }
+          },
+          "sendUpdates": "all",
+          "guestsCanInviteOthers": false,
+          "guestsCanSeeOtherGuests": true
+        }
+      },
+      "id": "google-calendar-create",
+      "name": "Google Calendar: Create event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [1520, 300],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Build minimal update payload for Enrollments. Map Automatically uses these field names.\nconst prep = $('Prepare data').first().json;\nconst calOut = $input.first().json || {};\nconst meetLink = calOut.hangoutLink\n  || (calOut.conferenceData && calOut.conferenceData.entryPoints && calOut.conferenceData.entryPoints[0] && calOut.conferenceData.entryPoints[0].uri)\n  || '';\nreturn [{\n  json: {\n    id: prep.enrollment_id,\n    selected_tutor: [prep.tutor_id],\n    selected_slot_datetime: prep.slot_start,\n    meet_link: meetLink,\n    parent_confirmed: true,\n    meet_created: true,\n    status: 'Booked',\n    _meet_link_for_downstream: meetLink\n  }\n}];"
+      },
+      "id": "code-prep-enrollment-update",
+      "name": "Prep enrollment update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1740, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "mode": "list",
+          "value": "app6o2dh6wgXwGYwr"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Enrollments"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": ["id"],
+          "schema": []
+        },
+        "options": {
+          "typecast": true,
+          "ignoreFields": "_meet_link_for_downstream"
+        }
+      },
+      "id": "airtable-update-enrollment",
+      "name": "Airtable: Update Enrollment",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [1960, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Slot update payload: just is_booked.\nconst prep = $('Prepare data').first().json;\nreturn [{ json: { id: prep.slot_id, is_booked: true } }];"
+      },
+      "id": "code-prep-slot-update",
+      "name": "Prep slot update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2180, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "mode": "list",
+          "value": "app6o2dh6wgXwGYwr"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "AvailableSlots"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": ["id"],
+          "schema": []
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "id": "airtable-update-slot",
+      "name": "Airtable: Mark slot booked",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [2400, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Booking creation payload: new row in Bookings table.\nconst prep = $('Prepare data').first().json;\nconst enrollmentUpdate = $('Airtable: Update Enrollment').first().json || {};\nconst meetLink = (enrollmentUpdate.fields && enrollmentUpdate.fields.meet_link) || '';\nreturn [{\n  json: {\n    enrollment: [prep.enrollment_id],\n    tutor: [prep.tutor_id],\n    slot_datetime: prep.slot_start,\n    meet_link: meetLink,\n    status: 'Scheduled'\n  }\n}];"
+      },
+      "id": "code-prep-booking-create",
+      "name": "Prep booking create",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2620, 300]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "mode": "list",
+          "value": "app6o2dh6wgXwGYwr"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Bookings"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "id": "airtable-create-booking",
+      "name": "Airtable: Create Booking",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [2840, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "from": "whatsapp:+14155238886",
+        "to": "=whatsapp:{{ $('Prepare data').item.json.parent_whatsapp }}",
+        "toWhatsapp": true,
+        "message": "=🎉 You're all set, {{ $('Prepare data').item.json.parent_name }}!\n\n{{ $('Prepare data').item.json.student_name }}'s {{ $('Prepare data').item.json.course }} class is booked.\n\n🗓 {{ $('Prepare data').item.json.slot_pretty }}\n👩‍🏫 Tutor: {{ $('Prepare data').item.json.tutor_name }}\n🔗 Google Meet: {{ $('Prep enrollment update').item.json._meet_link_for_downstream }}\n\nWe'll send a reminder before class. Reply here to reschedule.",
+        "options": {}
+      },
+      "id": "twilio-send-confirmation",
+      "name": "Twilio: Send confirmation",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [3060, 300],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Prepare data').item.json.parent_email }}",
+        "subject": "=Class confirmed for {{ $('Prepare data').item.json.student_name }} — Google Meet inside",
+        "emailType": "html",
+        "message": "=<div style=\"font-family:Inter,system-ui,sans-serif;max-width:560px;margin:0 auto;color:#2A2E36;\"><div style=\"background:#FF6B1F;padding:24px;border-radius:16px 16px 0 0;color:white\"><h1 style=\"margin:0;font-family:'Plus Jakarta Sans',sans-serif;font-size:24px\">You're all set! 🎉</h1></div><div style=\"background:white;border:1px solid #E5E8EE;border-top:none;padding:24px;border-radius:0 0 16px 16px\"><p>Hi {{ $('Prepare data').item.json.parent_name }},</p><p><b>{{ $('Prepare data').item.json.student_name }}</b>'s <b>{{ $('Prepare data').item.json.course }}</b> class is confirmed.</p><table style=\"width:100%;border-collapse:collapse;margin:16px 0\"><tr><td style=\"padding:8px 0;color:#5B6271\">When</td><td style=\"padding:8px 0;font-weight:600\">{{ $('Prepare data').item.json.slot_pretty }}</td></tr><tr><td style=\"padding:8px 0;color:#5B6271\">Tutor</td><td style=\"padding:8px 0;font-weight:600\">{{ $('Prepare data').item.json.tutor_name }}</td></tr></table><p style=\"text-align:center;margin:24px 0\"><a href=\"{{ $('Prep enrollment update').item.json._meet_link_for_downstream }}\" style=\"background:#FF6B1F;color:white;padding:12px 24px;border-radius:9999px;text-decoration:none;font-weight:600;display:inline-block\">Open Google Meet →</a></p><p style=\"color:#5B6271;font-size:14px\">A calendar invite has also been emailed to you.</p><p style=\"color:#5B6271;font-size:14px;margin-top:24px\">— Team Super Sheldon</p></div></div>",
+        "options": {}
+      },
+      "id": "gmail-send-confirmation",
+      "name": "Gmail: Send confirmation",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [3280, 300],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, meet_link: $('Prep enrollment update').item.json._meet_link_for_downstream, slot_datetime: $('Prepare data').item.json.slot_start, tutor_name: $('Prepare data').item.json.tutor_name } }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Access-Control-Allow-Methods", "value": "POST, OPTIONS" },
+              { "name": "Access-Control-Allow-Headers", "value": "Content-Type" }
+            ]
+          }
+        }
+      },
+      "id": "respond-success",
+      "name": "Respond: Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [3500, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Parse body", "type": "main", "index": 0 }]] },
+    "Parse body": { "main": [[{ "node": "Airtable: Find Enrollment", "type": "main", "index": 0 }]] },
+    "Airtable: Find Enrollment": { "main": [[{ "node": "Airtable: Get Tutor", "type": "main", "index": 0 }]] },
+    "Airtable: Get Tutor": { "main": [[{ "node": "Airtable: Get Slot", "type": "main", "index": 0 }]] },
+    "Airtable: Get Slot": { "main": [[{ "node": "Prepare data", "type": "main", "index": 0 }]] },
+    "Prepare data": { "main": [[{ "node": "Google Calendar: Create event", "type": "main", "index": 0 }]] },
+    "Google Calendar: Create event": { "main": [[{ "node": "Prep enrollment update", "type": "main", "index": 0 }]] },
+    "Prep enrollment update": { "main": [[{ "node": "Airtable: Update Enrollment", "type": "main", "index": 0 }]] },
+    "Airtable: Update Enrollment": { "main": [[{ "node": "Prep slot update", "type": "main", "index": 0 }]] },
+    "Prep slot update": { "main": [[{ "node": "Airtable: Mark slot booked", "type": "main", "index": 0 }]] },
+    "Airtable: Mark slot booked": { "main": [[{ "node": "Prep booking create", "type": "main", "index": 0 }]] },
+    "Prep booking create": { "main": [[{ "node": "Airtable: Create Booking", "type": "main", "index": 0 }]] },
+    "Airtable: Create Booking": { "main": [[{ "node": "Twilio: Send confirmation", "type": "main", "index": 0 }]] },
+    "Twilio: Send confirmation": { "main": [[{ "node": "Gmail: Send confirmation", "type": "main", "index": 0 }]] },
+    "Gmail: Send confirmation": { "main": [[{ "node": "Respond: Success", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true
+  },
+  "versionId": "3",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [{ "name": "sheldon" }]
+}

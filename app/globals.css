@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ss-orange-500: #FF6B1F;
+  --ss-bg-50: #FFF8F2;
+  --ss-ink-700: #2A2E36;
+  --ss-ink-900: #0F1115;
+}
+
+html,
+body {
+  background-color: var(--ss-bg-50);
+  color: var(--ss-ink-700);
+  font-family: Inter, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Plus Jakarta Sans", Inter, system-ui, sans-serif;
+  color: var(--ss-ink-900);
+  line-height: 1.25;
+}
+
+body {
+  line-height: 1.55;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Hide number input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
