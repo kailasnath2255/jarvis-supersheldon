@@ -62,8 +62,8 @@
     },
     {
       "parameters": {
-        "from": "whatsapp:+14155238886",
-        "to": "=whatsapp:{{ $('Prep create').item.json.parent_whatsapp }}",
+        "from": "+14155238886",
+        "to": "={{ $('Prep create').item.json.parent_whatsapp }}",
         "toWhatsapp": true,
         "message": "=Hi {{ $('Prep create').item.json.parent_name }}! 🎉\n\nWelcome to Super Sheldon. We've received your payment for {{ $('Prep create').item.json.student_name }}'s {{ $('Prep create').item.json.course }} classes.\n\nTap to confirm your tutor and class timing:\nhttps://jarvis-supersheldon.vercel.app/confirm/{{ $('Prep create').item.json.magic_token }}\n\n— Team Super Sheldon",
         "options": {}

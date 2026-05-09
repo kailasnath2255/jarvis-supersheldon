@@ -281,8 +281,8 @@
     },
     {
       "parameters": {
-        "from": "whatsapp:+14155238886",
-        "to": "=whatsapp:{{ $('Prepare data').item.json.parent_whatsapp }}",
+        "from": "+14155238886",
+        "to": "={{ $('Prepare data').item.json.parent_whatsapp }}",
         "toWhatsapp": true,
         "message": "=🎉 You're all set, {{ $('Prepare data').item.json.parent_name }}!\n\n{{ $('Prepare data').item.json.student_name }}'s {{ $('Prepare data').item.json.course }} class is booked.\n\n🗓 {{ $('Prepare data').item.json.slot_pretty }}\n👩‍🏫 Tutor: {{ $('Prepare data').item.json.tutor_name }}\n🔗 Google Meet: {{ $('Prep enrollment update').item.json._meet_link_for_downstream }}\n\nWe'll send a reminder before class. Reply here to reschedule.",
         "options": {}
