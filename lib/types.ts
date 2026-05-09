@@ -41,6 +41,30 @@ export type ConfirmResponse = {
   tutor_name: string;
 };
 
+export type EnrollmentListItem = {
+  enrollment_id: string;
+  magic_token: string;
+  student_name: string;
+  parent_name: string;
+  course: string;
+  classes_count: number;
+  amount: number;
+  currency: string;
+  status: string;
+  sales_agent: string;
+  whatsapp_sent: boolean;
+  email_sent: boolean;
+  parent_confirmed: boolean;
+  meet_created: boolean;
+  meet_link: string;
+  created_at: string;
+};
+
+export type EnrollmentListResponse = {
+  enrollments: EnrollmentListItem[];
+  count: number;
+};
+
 export const COURSES = [
   "Maths",
   "English",

@@ -95,12 +95,20 @@ export default function SalesFormPage() {
           <Link href="/" className="inline-flex items-center">
             <Logo size={36} />
           </Link>
-          <Link
-            href="/"
-            className="text-sm font-semibold text-ss-ink-500 hover:text-ss-ink-900 transition"
-          >
-            ← Home
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/enrollments"
+              className="text-sm font-semibold text-ss-ink-500 hover:text-ss-ink-900 transition"
+            >
+              All enrollments
+            </Link>
+            <Link
+              href="/"
+              className="text-sm font-semibold text-ss-ink-500 hover:text-ss-ink-900 transition"
+            >
+              ← Home
+            </Link>
+          </div>
         </div>
       </header>
 

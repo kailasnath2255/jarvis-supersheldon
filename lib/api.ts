@@ -2,6 +2,8 @@ import type {
   ConfirmPayload,
   ConfirmResponse,
   EnrollmentDetails,
+  EnrollmentListItem,
+  EnrollmentListResponse,
   EnrollmentSubmitResponse,
   Tutor,
 } from "./types";
@@ -18,6 +20,79 @@ export function isMockMode(): boolean {
     !isLive(process.env.NEXT_PUBLIC_N8N_GET_ENROLLMENT_URL) ||
     !isLive(process.env.NEXT_PUBLIC_N8N_CONFIRM_URL)
   );
+}
+
+export async function listEnrollments(): Promise<EnrollmentListResponse> {
+  const url = process.env.NEXT_PUBLIC_N8N_LIST_ENROLLMENTS_URL;
+  if (!isLive(url)) {
+    await wait(500);
+    return mockEnrollmentsList();
+  }
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Failed to list enrollments (${res.status})`);
+  }
+  return (await res.json()) as EnrollmentListResponse;
+}
+
+function mockEnrollmentsList(): EnrollmentListResponse {
+  const items: EnrollmentListItem[] = [
+    {
+      enrollment_id: "rec_mock_1",
+      magic_token: "mock_demo_token_1",
+      student_name: "Aarav Sharma",
+      parent_name: "Rohit Sharma",
+      course: "Maths",
+      classes_count: 12,
+      amount: 5400,
+      currency: "INR",
+      status: "Booked",
+      sales_agent: "Demo Agent",
+      whatsapp_sent: true,
+      email_sent: true,
+      parent_confirmed: true,
+      meet_created: true,
+      meet_link: "https://meet.google.com/mock-abc-defg",
+      created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+    },
+    {
+      enrollment_id: "rec_mock_2",
+      magic_token: "mock_demo_token_2",
+      student_name: "Saanvi Mehra",
+      parent_name: "Pooja Mehra",
+      course: "Coding",
+      classes_count: 24,
+      amount: 9600,
+      currency: "INR",
+      status: "Notified",
+      sales_agent: "Demo Agent",
+      whatsapp_sent: true,
+      email_sent: true,
+      parent_confirmed: false,
+      meet_created: false,
+      meet_link: "",
+      created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+    },
+    {
+      enrollment_id: "rec_mock_3",
+      magic_token: "mock_demo_token_3",
+      student_name: "Ishaan Iyer",
+      parent_name: "Anita Iyer",
+      course: "Public Speaking",
+      classes_count: 8,
+      amount: 3200,
+      currency: "INR",
+      status: "Pending",
+      sales_agent: "Demo Agent",
+      whatsapp_sent: false,
+      email_sent: false,
+      parent_confirmed: false,
+      meet_created: false,
+      meet_link: "",
+      created_at: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+    },
+  ];
+  return { enrollments: items, count: items.length };
 }
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));

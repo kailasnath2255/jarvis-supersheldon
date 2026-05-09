@@ -1,0 +1,103 @@
+{
+  "name": "Sheldon — 4. List Enrollments",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "list-enrollments",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "webhook-list-enrollments",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300],
+      "webhookId": "sheldon-list-enrollments"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "mode": "list",
+          "value": "app6o2dh6wgXwGYwr"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Enrollments"
+        },
+        "sort": {
+          "property": [
+            { "field": "created_at", "direction": "desc" }
+          ]
+        },
+        "options": {
+          "limit": 50
+        }
+      },
+      "id": "airtable-list-enrollments",
+      "name": "Airtable: List Enrollments",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [440, 300],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1500
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Shape the enrollment list for the frontend.\nconst pickFields = (rec) => (rec && rec.fields) ? rec.fields : (rec || {});\nconst pickId = (rec) => (rec && (rec.id || rec.recordId)) || '';\n\nconst seen = new Map();\nfor (const item of $input.all()) {\n  const r = item.json;\n  const id = pickId(r);\n  if (id && !seen.has(id)) seen.set(id, r);\n}\nconst recs = [...seen.values()];\n\nconst enrollments = recs\n  .map(r => {\n    const f = pickFields(r);\n    return {\n      enrollment_id: pickId(r),\n      magic_token: f.magic_token || '',\n      student_name: f.student_name || '',\n      parent_name: f.parent_name || '',\n      course: f.course || '',\n      classes_count: Number(f.classes_count) || 0,\n      amount: Number(f.amount) || 0,\n      currency: f.currency || 'INR',\n      status: f.status || 'Pending',\n      sales_agent: f.sales_agent || '',\n      whatsapp_sent: !!f.whatsapp_sent,\n      email_sent: !!f.email_sent,\n      parent_confirmed: !!f.parent_confirmed,\n      meet_created: !!f.meet_created,\n      meet_link: f.meet_link || '',\n      created_at: f.created_at || ''\n    };\n  })\n  .filter(e => e.magic_token);\n\nreturn [{ json: { enrollments, count: enrollments.length } }];"
+      },
+      "id": "code-shape",
+      "name": "Shape response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Access-Control-Allow-Methods", "value": "GET, OPTIONS" },
+              { "name": "Access-Control-Allow-Headers", "value": "Content-Type" },
+              { "name": "Cache-Control", "value": "no-store" }
+            ]
+          }
+        }
+      },
+      "id": "respond-ok",
+      "name": "Respond: OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [880, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Airtable: List Enrollments", "type": "main", "index": 0 }]] },
+    "Airtable: List Enrollments": { "main": [[{ "node": "Shape response", "type": "main", "index": 0 }]] },
+    "Shape response": { "main": [[{ "node": "Respond: OK", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [{ "name": "sheldon" }]
+}

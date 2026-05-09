@@ -47,10 +47,10 @@ export default function LandingPage() {
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
           <Link
-            href="/confirm/mock-demo"
+            href="/enrollments"
             className="px-5 py-3 rounded-full border-2 border-ss-orange-500 text-ss-orange-600 font-semibold hover:bg-ss-orange-50 transition"
           >
-            Preview parent flow
+            View enrollments
           </Link>
         </div>
 
