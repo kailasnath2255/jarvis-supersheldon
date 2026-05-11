@@ -12,6 +12,7 @@ import { FormField } from "@/components/shared/FormField";
 import { Logo } from "@/components/shared/Logo";
 import { MockBanner } from "@/components/shared/MockBanner";
 import { StudentPicker } from "@/components/shared/StudentPicker";
+import { PhoneInput } from "@/components/shared/PhoneInput";
 import type { Student } from "@/lib/types";
 import {
   CLASSES_SOLD_MONTHLY_OPTIONS,
@@ -77,6 +78,7 @@ export default function SalesFormPage() {
   const saleWithoutDemo = watch("sale_without_demo");
   const isReferralLead = watch("is_referral_lead");
   const studentIdValue = watch("student_id") || "";
+  const parentWhatsapp = watch("parent_whatsapp") || "";
   const screenshot = watch("payment_screenshot") as File | undefined;
 
   function applyStudent(s: Student) {
@@ -274,14 +276,20 @@ export default function SalesFormPage() {
                     label="Parent's WhatsApp number"
                     htmlFor="parent_whatsapp"
                     required
-                    hint="Include country code"
                     error={errors.parent_whatsapp?.message}
                   >
-                    <input
+                    <PhoneInput
                       id="parent_whatsapp"
-                      type="tel"
-                      placeholder="+91 98XXXXXXXX"
-                      className={`${inputClass} ${errors.parent_whatsapp ? errorInputClass : ""}`}
+                      value={parentWhatsapp}
+                      invalid={!!errors.parent_whatsapp}
+                      onChange={(v) =>
+                        setValue("parent_whatsapp", v, {
+                          shouldValidate: true,
+                        })
+                      }
+                    />
+                    <input
+                      type="hidden"
                       {...register("parent_whatsapp")}
                     />
                   </FormField>
