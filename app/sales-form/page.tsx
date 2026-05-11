@@ -210,7 +210,6 @@ export default function SalesFormPage() {
                   <FormField
                     label="Student ID"
                     htmlFor="student_id"
-                    hint="Pick from existing demo students — auto-fills name, parent, contact, demo tutor"
                     error={errors.student_id?.message}
                     className="md:col-span-2"
                   >

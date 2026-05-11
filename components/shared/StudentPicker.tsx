@@ -75,11 +75,6 @@ export function StudentPicker({
       .slice(0, 30);
   }, [students, query]);
 
-  const selected = useMemo(
-    () => students.find((s) => s.student_id === value),
-    [students, value],
-  );
-
   function pick(s: Student) {
     onPickStudent(s);
     setOpen(false);
@@ -140,24 +135,6 @@ export function StudentPicker({
           )}
         </button>
       </div>
-
-      {/* Selected student summary */}
-      {selected ? (
-        <div className="mt-2 flex items-center gap-2 text-xs text-ss-ink-500">
-          <Check
-            className="h-3.5 w-3.5 text-ss-success"
-            aria-hidden="true"
-          />
-          <span className="truncate">
-            <span className="font-semibold text-ss-ink-700">
-              {selected.name}
-            </span>
-            {selected.grade ? ` · ${selected.grade}` : ""}
-            {selected.demo_tutor ? ` · Demo by ${selected.demo_tutor}` : ""}
-            {selected.demo_completed ? "" : " · Demo pending"}
-          </span>
-        </div>
-      ) : null}
 
       {/* Dropdown */}
       {open ? (
