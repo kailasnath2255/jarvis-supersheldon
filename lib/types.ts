@@ -75,7 +75,7 @@ export const COURSES = [
   "Chess",
 ] as const;
 
-export const CURRENCIES = ["INR", "GBP", "USD", "CAD"] as const;
+export const CURRENCIES = ["INR", "GBP", "USD", "AUD", "NZD"] as const;
 
 export const LEAD_SOURCES = [
   "Instagram",
