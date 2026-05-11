@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  ADDITIONAL_TYPES,
   CLASSES_SOLD_MONTHLY_OPTIONS,
   COURSES,
   CURRENCIES,
@@ -94,6 +95,120 @@ export const enrollmentSchema = z.object({
     errorMap: () => ({ message: "Pick a lead source" }),
   }),
   preferred_timing: z.string().trim().optional().default(""),
+
+  // Multi-batch (dynamic, conditional)
+  has_additional_enrollments: z.enum(["Yes", "No"]).default("No"),
+  additional_type: z.enum(ADDITIONAL_TYPES).optional(),
+  additional_subjects: z.array(z.enum(COURSES)).default([]),
+  additional_enrollment_type: z.enum(ENROLLMENT_TYPES).optional(),
+  additional_classes_count: z.number().int().optional(),
+  additional_classes_sold_monthly: z.number().int().optional(),
+  additional_students: z
+    .array(
+      z.object({
+        student_id: z.string().trim().default(""),
+        student_name: z.string().trim().min(1, "Student name required"),
+        parent_email: z.string().trim().email("Valid email required"),
+        courses: z.array(z.enum(COURSES)).default([]),
+        classes_count: z
+          .number({ invalid_type_error: "Enter a number" })
+          .int()
+          .min(1, "At least 1 class"),
+        type_of_enrollment: z.enum(ENROLLMENT_TYPES),
+        classes_sold_monthly: z
+          .number({ invalid_type_error: "Pick monthly pack size" })
+          .int(),
+        sale_without_demo: z.enum(["Yes", "No"]),
+      }),
+    )
+    .default([]),
+}).superRefine((data, ctx) => {
+  if (data.has_additional_enrollments !== "Yes") return;
+  if (!data.additional_type) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["additional_type"],
+      message: "Pick the type of additional enrolments",
+    });
+    return;
+  }
+  const sameStudent =
+    data.additional_type === "Same student, additional subject(s)" ||
+    data.additional_type === "Both";
+  const differentStudents =
+    data.additional_type === "Different student(s)" ||
+    data.additional_type === "Both";
+
+  if (sameStudent) {
+    if (!data.additional_subjects || data.additional_subjects.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["additional_subjects"],
+        message: "Pick at least one subject",
+      });
+    }
+    if (!data.additional_enrollment_type) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["additional_enrollment_type"],
+        message: "Pick enrolment type",
+      });
+    }
+    if (
+      data.additional_classes_count === undefined ||
+      data.additional_classes_count === null ||
+      data.additional_classes_count < 1
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["additional_classes_count"],
+        message: "Enter classes in this payment",
+      });
+    }
+    if (
+      !data.additional_classes_sold_monthly ||
+      !(CLASSES_SOLD_MONTHLY_OPTIONS as readonly number[]).includes(
+        data.additional_classes_sold_monthly,
+      )
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["additional_classes_sold_monthly"],
+        message: "Pick monthly pack size",
+      });
+    }
+  }
+
+  if (differentStudents) {
+    if (!data.additional_students || data.additional_students.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["additional_students"],
+        message: "Add at least one student",
+      });
+    } else {
+      data.additional_students.forEach((s, i) => {
+        if (
+          !(CLASSES_SOLD_MONTHLY_OPTIONS as readonly number[]).includes(
+            s.classes_sold_monthly,
+          )
+        ) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["additional_students", i, "classes_sold_monthly"],
+            message: "Pick 4, 6, 8, 10, or 12",
+          });
+        }
+        if (!s.courses || s.courses.length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["additional_students", i, "courses"],
+            message: "Pick at least one course",
+          });
+        }
+      });
+    }
+  }
 });
 
 export type EnrollmentFormValues = z.infer<typeof enrollmentSchema>;

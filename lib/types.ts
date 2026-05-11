@@ -117,6 +117,12 @@ export const ENROLLMENT_TYPES = [
 
 export const PAYMENT_MODES = ["UPI", "Card", "Online", "Others"] as const;
 
+export const ADDITIONAL_TYPES = [
+  "Same student, additional subject(s)",
+  "Different student(s)",
+  "Both",
+] as const;
+
 export const CLASSES_SOLD_MONTHLY_OPTIONS = [4, 6, 8, 10, 12] as const;
 
 export type Course = (typeof COURSES)[number];
@@ -125,4 +131,5 @@ export type LeadSource = (typeof LEAD_SOURCES)[number];
 export type SaleType = (typeof SALE_TYPES)[number];
 export type EnrollmentType = (typeof ENROLLMENT_TYPES)[number];
 export type PaymentMode = (typeof PAYMENT_MODES)[number];
+export type AdditionalType = (typeof ADDITIONAL_TYPES)[number];
 export type ClassesSoldMonthly = (typeof CLASSES_SOLD_MONTHLY_OPTIONS)[number];

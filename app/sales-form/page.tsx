@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { Logo } from "@/components/shared/Logo";
 import { MockBanner } from "@/components/shared/MockBanner";
 import { StudentPicker } from "@/components/shared/StudentPicker";
 import { PhoneInput } from "@/components/shared/PhoneInput";
+import { AdditionalEnrollments } from "@/components/shared/AdditionalEnrollments";
 import type { Student } from "@/lib/types";
 import {
   CLASSES_SOLD_MONTHLY_OPTIONS,
@@ -51,14 +52,7 @@ type SuccessState = {
 export default function SalesFormPage() {
   const [success, setSuccess] = useState<SuccessState | null>(null);
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<EnrollmentFormValues>({
+  const methods = useForm<EnrollmentFormValues>({
     resolver: zodResolver(enrollmentSchema),
     defaultValues: {
       currency: "INR",
@@ -71,9 +65,20 @@ export default function SalesFormPage() {
       student_id: "",
       parent_name: "",
       demo_tutor: "",
+      has_additional_enrollments: "No",
+      additional_subjects: [],
+      additional_students: [],
     },
     mode: "onBlur",
   });
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors, isSubmitting },
+  } = methods;
 
   const saleType = watch("sale_type");
   const saleWithoutDemo = watch("sale_without_demo");
@@ -123,6 +128,8 @@ export default function SalesFormPage() {
       Object.entries(values).forEach(([key, val]) => {
         if (val instanceof File) {
           fd.append(key, val);
+        } else if (Array.isArray(val) || (val !== null && typeof val === "object")) {
+          fd.append(key, JSON.stringify(val));
         } else if (val !== undefined && val !== null) {
           fd.append(key, String(val));
         }
@@ -199,6 +206,7 @@ export default function SalesFormPage() {
               subtitle="Fills in 2 minutes. Everything else is automated."
             />
 
+            <FormProvider {...methods}>
             <form
               onSubmit={handleSubmit(onSubmit)}
               noValidate
@@ -548,6 +556,10 @@ export default function SalesFormPage() {
                     />
                   </FormField>
                 </div>
+
+                <div className="pt-2">
+                  <AdditionalEnrollments />
+                </div>
               </Subsection>
 
               {/* Section 3: Payment Details */}
@@ -694,6 +706,7 @@ export default function SalesFormPage() {
                 </button>
               </div>
             </form>
+            </FormProvider>
           </>
         )}
       </div>
