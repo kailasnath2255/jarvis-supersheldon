@@ -381,7 +381,6 @@ export default function SalesFormPage() {
                     label="Number of classes sold monthly"
                     htmlFor="classes_sold_monthly"
                     required
-                    className="md:col-span-2"
                     error={errors.classes_sold_monthly?.message}
                   >
                     <select
@@ -397,6 +396,107 @@ export default function SalesFormPage() {
                         </option>
                       ))}
                     </select>
+                  </FormField>
+
+                  <FormField
+                    label="Your name"
+                    htmlFor="sales_agent"
+                    required
+                    error={errors.sales_agent?.message}
+                  >
+                    <input
+                      id="sales_agent"
+                      type="text"
+                      className={`${inputClass} ${errors.sales_agent ? errorInputClass : ""}`}
+                      {...register("sales_agent")}
+                    />
+                  </FormField>
+
+                  <FormField
+                    label="Sale type"
+                    htmlFor="sale_type"
+                    required
+                    error={errors.sale_type?.message}
+                  >
+                    <div role="radiogroup" className="flex flex-wrap gap-2">
+                      {SALE_TYPES.map((opt) => {
+                        const selected = saleType === opt;
+                        return (
+                          <label
+                            key={opt}
+                            className={`cursor-pointer px-4 py-2 rounded-full border-2 font-semibold text-sm transition ${
+                              selected
+                                ? "bg-ss-orange-500 text-white border-ss-orange-500"
+                                : "bg-white text-ss-ink-700 border-ss-ink-300 hover:border-ss-orange-400"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              value={opt}
+                              className="sr-only"
+                              {...register("sale_type")}
+                            />
+                            {opt}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </FormField>
+
+                  <FormField
+                    label="Lead source"
+                    htmlFor="lead_source"
+                    required
+                    error={errors.lead_source?.message}
+                  >
+                    <select
+                      id="lead_source"
+                      defaultValue=""
+                      className={`${selectClass} ${errors.lead_source ? errorInputClass : ""}`}
+                      {...register("lead_source")}
+                    >
+                      <option value="" disabled>
+                        Pick a source
+                      </option>
+                      {LEAD_SOURCES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+
+                  <FormField
+                    label="Demo session tutor"
+                    htmlFor="demo_tutor"
+                    hint={
+                      saleWithoutDemo === "Yes"
+                        ? "Optional — sale was without a demo"
+                        : "Optional"
+                    }
+                    error={errors.demo_tutor?.message}
+                  >
+                    <input
+                      id="demo_tutor"
+                      type="text"
+                      className={`${inputClass} ${errors.demo_tutor ? errorInputClass : ""}`}
+                      {...register("demo_tutor")}
+                    />
+                  </FormField>
+
+                  <FormField
+                    label="Preferred class timing (parent's note)"
+                    htmlFor="preferred_timing"
+                    className="md:col-span-2"
+                    error={errors.preferred_timing?.message}
+                  >
+                    <input
+                      id="preferred_timing"
+                      type="text"
+                      placeholder="e.g. weekdays 5–7 PM"
+                      className={inputClass}
+                      {...register("preferred_timing")}
+                    />
                   </FormField>
                 </div>
               </Subsection>
@@ -502,115 +602,6 @@ export default function SalesFormPage() {
                     }
                   />
                 </FormField>
-              </Subsection>
-
-              {/* Section 4: Internal */}
-              <Subsection
-                title="4. Internal"
-                description="For our records and the assignment flow."
-              >
-                <div className="grid md:grid-cols-2 gap-4">
-                  <FormField
-                    label="Your name"
-                    htmlFor="sales_agent"
-                    required
-                    error={errors.sales_agent?.message}
-                  >
-                    <input
-                      id="sales_agent"
-                      type="text"
-                      className={`${inputClass} ${errors.sales_agent ? errorInputClass : ""}`}
-                      {...register("sales_agent")}
-                    />
-                  </FormField>
-
-                  <FormField
-                    label="Sale type"
-                    htmlFor="sale_type"
-                    required
-                    error={errors.sale_type?.message}
-                  >
-                    <div role="radiogroup" className="flex flex-wrap gap-2">
-                      {SALE_TYPES.map((opt) => {
-                        const selected = saleType === opt;
-                        return (
-                          <label
-                            key={opt}
-                            className={`cursor-pointer px-4 py-2 rounded-full border-2 font-semibold text-sm transition ${
-                              selected
-                                ? "bg-ss-orange-500 text-white border-ss-orange-500"
-                                : "bg-white text-ss-ink-700 border-ss-ink-300 hover:border-ss-orange-400"
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              value={opt}
-                              className="sr-only"
-                              {...register("sale_type")}
-                            />
-                            {opt}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </FormField>
-
-                  <FormField
-                    label="Lead source"
-                    htmlFor="lead_source"
-                    required
-                    error={errors.lead_source?.message}
-                  >
-                    <select
-                      id="lead_source"
-                      defaultValue=""
-                      className={`${selectClass} ${errors.lead_source ? errorInputClass : ""}`}
-                      {...register("lead_source")}
-                    >
-                      <option value="" disabled>
-                        Pick a source
-                      </option>
-                      {LEAD_SOURCES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </FormField>
-
-                  <FormField
-                    label="Demo session tutor"
-                    htmlFor="demo_tutor"
-                    hint={
-                      saleWithoutDemo === "Yes"
-                        ? "Optional — sale was without a demo"
-                        : "Optional"
-                    }
-                    error={errors.demo_tutor?.message}
-                  >
-                    <input
-                      id="demo_tutor"
-                      type="text"
-                      className={`${inputClass} ${errors.demo_tutor ? errorInputClass : ""}`}
-                      {...register("demo_tutor")}
-                    />
-                  </FormField>
-
-                  <FormField
-                    label="Preferred class timing (parent's note)"
-                    htmlFor="preferred_timing"
-                    className="md:col-span-2"
-                    error={errors.preferred_timing?.message}
-                  >
-                    <input
-                      id="preferred_timing"
-                      type="text"
-                      placeholder="e.g. weekdays 5–7 PM"
-                      className={inputClass}
-                      {...register("preferred_timing")}
-                    />
-                  </FormField>
-                </div>
               </Subsection>
 
               <div className="pt-2">
