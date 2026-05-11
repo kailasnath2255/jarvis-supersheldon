@@ -12,8 +12,10 @@ import { FormField } from "@/components/shared/FormField";
 import { Logo } from "@/components/shared/Logo";
 import { MockBanner } from "@/components/shared/MockBanner";
 import {
+  CLASSES_SOLD_MONTHLY_OPTIONS,
   COURSES,
   CURRENCIES,
+  ENROLLMENT_TYPES,
   LEAD_SOURCES,
   SALE_TYPES,
 } from "@/lib/types";
@@ -28,8 +30,17 @@ const selectClass = `${inputClass} appearance-none bg-[url('data:image/svg+xml;u
 const errorInputClass =
   "border-ss-error focus:border-ss-error focus:ring-ss-error/20";
 
+const todayISO = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
 type SuccessState = {
   parentName: string;
+  studentName: string;
   magicToken: string;
 };
 
@@ -48,12 +59,21 @@ export default function SalesFormPage() {
     defaultValues: {
       currency: "INR",
       classes_count: 12,
+      classes_sold_monthly: 12,
       preferred_timing: "",
+      date_of_enrollment: todayISO(),
+      sale_without_demo: "No",
+      is_referral_lead: "No",
+      student_id: "",
+      parent_name: "",
+      demo_tutor: "",
     },
     mode: "onBlur",
   });
 
   const saleType = watch("sale_type");
+  const saleWithoutDemo = watch("sale_without_demo");
+  const isReferralLead = watch("is_referral_lead");
   const screenshot = watch("payment_screenshot") as File | undefined;
 
   async function onSubmit(values: EnrollmentFormValues) {
@@ -69,7 +89,8 @@ export default function SalesFormPage() {
       const res = await submitEnrollment(fd);
       if (!res.success) throw new Error("Server returned success=false");
       setSuccess({
-        parentName: values.parent_name,
+        parentName: values.parent_name || values.student_name,
+        studentName: values.student_name,
         magicToken: res.magic_token,
       });
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -83,7 +104,14 @@ export default function SalesFormPage() {
     reset({
       currency: "INR",
       classes_count: 12,
+      classes_sold_monthly: 12,
       preferred_timing: "",
+      date_of_enrollment: todayISO(),
+      sale_without_demo: "No",
+      is_referral_lead: "No",
+      student_id: "",
+      parent_name: "",
+      demo_tutor: "",
     });
     setSuccess(null);
   }
@@ -118,6 +146,7 @@ export default function SalesFormPage() {
         {success ? (
           <SuccessCard
             parentName={success.parentName}
+            studentName={success.studentName}
             magicToken={success.magicToken}
             onReset={startOver}
           />
@@ -134,12 +163,45 @@ export default function SalesFormPage() {
               noValidate
               className="bg-white rounded-2xl shadow-ss border border-ss-ink-200 p-6 md:p-8 space-y-8"
             >
-              {/* Sub-section 1 */}
+              {/* Section 1: Student Information */}
               <Subsection
-                title="Student & parent"
-                description="Who is the class for, and how do we reach them?"
+                title="1. Student information"
+                description="Once the Demo Form is filled, fields auto-populate from the Student ID."
               >
                 <div className="grid md:grid-cols-2 gap-4">
+                  <FormField
+                    label="Student ID"
+                    htmlFor="student_id"
+                    hint="Auto-fills from Demo Form when available"
+                    error={errors.student_id?.message}
+                  >
+                    <input
+                      id="student_id"
+                      type="text"
+                      autoComplete="off"
+                      placeholder="e.g. SS-2026-0142"
+                      className={`${inputClass} ${errors.student_id ? errorInputClass : ""}`}
+                      {...register("student_id")}
+                    />
+                  </FormField>
+
+                  <FormField
+                    label="Sale Without Demo"
+                    htmlFor="sale_without_demo"
+                    required
+                    error={errors.sale_without_demo?.message}
+                  >
+                    <YesNoPills
+                      value={saleWithoutDemo}
+                      onPick={(v) =>
+                        setValue("sale_without_demo", v, {
+                          shouldValidate: true,
+                        })
+                      }
+                    />
+                    <input type="hidden" {...register("sale_without_demo")} />
+                  </FormField>
+
                   <FormField
                     label="Student's name"
                     htmlFor="student_name"
@@ -149,7 +211,6 @@ export default function SalesFormPage() {
                     <input
                       id="student_name"
                       type="text"
-                      autoComplete="off"
                       className={`${inputClass} ${errors.student_name ? errorInputClass : ""}`}
                       {...register("student_name")}
                     />
@@ -158,13 +219,12 @@ export default function SalesFormPage() {
                   <FormField
                     label="Parent's name"
                     htmlFor="parent_name"
-                    required
+                    hint="Optional"
                     error={errors.parent_name?.message}
                   >
                     <input
                       id="parent_name"
                       type="text"
-                      autoComplete="off"
                       className={`${inputClass} ${errors.parent_name ? errorInputClass : ""}`}
                       {...register("parent_name")}
                     />
@@ -180,7 +240,6 @@ export default function SalesFormPage() {
                     <input
                       id="parent_whatsapp"
                       type="tel"
-                      autoComplete="tel"
                       placeholder="+91 98XXXXXXXX"
                       className={`${inputClass} ${errors.parent_whatsapp ? errorInputClass : ""}`}
                       {...register("parent_whatsapp")}
@@ -196,20 +255,89 @@ export default function SalesFormPage() {
                     <input
                       id="parent_email"
                       type="email"
-                      autoComplete="email"
                       className={`${inputClass} ${errors.parent_email ? errorInputClass : ""}`}
                       {...register("parent_email")}
                     />
                   </FormField>
+
+                  <FormField
+                    label="Any specific requirement for course classes"
+                    htmlFor="specific_requirement"
+                    required
+                    className="md:col-span-2"
+                    error={errors.specific_requirement?.message}
+                  >
+                    <textarea
+                      id="specific_requirement"
+                      rows={3}
+                      placeholder="Note any learning needs, schedule preferences, or special requests"
+                      className={`${inputClass} resize-y min-h-[88px] ${errors.specific_requirement ? errorInputClass : ""}`}
+                      {...register("specific_requirement")}
+                    />
+                  </FormField>
+
+                  <FormField
+                    label="Is this a referral lead?"
+                    htmlFor="is_referral_lead"
+                    required
+                    error={errors.is_referral_lead?.message}
+                  >
+                    <YesNoPills
+                      value={isReferralLead}
+                      onPick={(v) =>
+                        setValue("is_referral_lead", v, {
+                          shouldValidate: true,
+                        })
+                      }
+                    />
+                    <input type="hidden" {...register("is_referral_lead")} />
+                  </FormField>
                 </div>
               </Subsection>
 
-              {/* Sub-section 2 */}
+              {/* Section 2: Enrollment Details */}
               <Subsection
-                title="Course"
-                description="What did the parent buy?"
+                title="2. Enrollment details"
+                description="What did the parent enroll in and for how long?"
               >
                 <div className="grid md:grid-cols-2 gap-4">
+                  <FormField
+                    label="Date of enrollment"
+                    htmlFor="date_of_enrollment"
+                    required
+                    error={errors.date_of_enrollment?.message}
+                  >
+                    <input
+                      id="date_of_enrollment"
+                      type="date"
+                      className={`${inputClass} ${errors.date_of_enrollment ? errorInputClass : ""}`}
+                      {...register("date_of_enrollment")}
+                    />
+                  </FormField>
+
+                  <FormField
+                    label="Type of enrollment"
+                    htmlFor="type_of_enrollment"
+                    required
+                    error={errors.type_of_enrollment?.message}
+                  >
+                    <select
+                      id="type_of_enrollment"
+                      defaultValue=""
+                      className={`${selectClass} ${errors.type_of_enrollment ? errorInputClass : ""}`}
+                      {...register("type_of_enrollment")}
+                    >
+                      <option value="" disabled>
+                        Pick type
+                      </option>
+                      {ENROLLMENT_TYPES.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+
                   <FormField
                     label="Course"
                     htmlFor="course"
@@ -234,7 +362,7 @@ export default function SalesFormPage() {
                   </FormField>
 
                   <FormField
-                    label="Number of classes purchased"
+                    label="Number of classes in this payment"
                     htmlFor="classes_count"
                     required
                     error={errors.classes_count?.message}
@@ -248,71 +376,37 @@ export default function SalesFormPage() {
                       {...register("classes_count", { valueAsNumber: true })}
                     />
                   </FormField>
-                </div>
 
-                <FormField
-                  label="Sale type"
-                  htmlFor="sale_type"
-                  required
-                  error={errors.sale_type?.message}
-                >
-                  <div
-                    role="radiogroup"
-                    aria-labelledby="sale_type"
-                    className="flex flex-wrap gap-2"
+                  <FormField
+                    label="Number of classes sold monthly"
+                    htmlFor="classes_sold_monthly"
+                    required
+                    className="md:col-span-2"
+                    error={errors.classes_sold_monthly?.message}
                   >
-                    {SALE_TYPES.map((opt) => {
-                      const selected = saleType === opt;
-                      return (
-                        <label
-                          key={opt}
-                          className={`cursor-pointer px-4 py-2 rounded-full border-2 font-semibold text-sm transition ${
-                            selected
-                              ? "bg-ss-orange-500 text-white border-ss-orange-500"
-                              : "bg-white text-ss-ink-700 border-ss-ink-300 hover:border-ss-orange-400"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            value={opt}
-                            className="sr-only"
-                            {...register("sale_type")}
-                          />
-                          {opt}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </FormField>
+                    <select
+                      id="classes_sold_monthly"
+                      className={`${selectClass} ${errors.classes_sold_monthly ? errorInputClass : ""}`}
+                      {...register("classes_sold_monthly", {
+                        valueAsNumber: true,
+                      })}
+                    >
+                      {CLASSES_SOLD_MONTHLY_OPTIONS.map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                </div>
               </Subsection>
 
-              {/* Sub-section 3 */}
+              {/* Section 3: Payment Details */}
               <Subsection
-                title="Payment"
-                description="What did they pay, and where's the proof?"
+                title="3. Payment details"
+                description="Both customer-currency and INR equivalent, plus payment ID and proof."
               >
-                <div className="grid md:grid-cols-[1fr_140px] gap-4">
-                  <FormField
-                    label="Amount received"
-                    htmlFor="amount"
-                    required
-                    error={errors.amount?.message}
-                  >
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ss-ink-500 font-semibold">
-                        ₹
-                      </span>
-                      <input
-                        id="amount"
-                        type="number"
-                        inputMode="decimal"
-                        step="0.01"
-                        className={`${inputClass} pl-8 ${errors.amount ? errorInputClass : ""}`}
-                        {...register("amount", { valueAsNumber: true })}
-                      />
-                    </div>
-                  </FormField>
-
+                <div className="grid md:grid-cols-[140px_1fr] gap-4">
                   <FormField
                     label="Currency"
                     htmlFor="currency"
@@ -330,6 +424,62 @@ export default function SalesFormPage() {
                         </option>
                       ))}
                     </select>
+                  </FormField>
+
+                  <FormField
+                    label="Collection in customer's currency"
+                    htmlFor="amount"
+                    required
+                    error={errors.amount?.message}
+                  >
+                    <input
+                      id="amount"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      className={`${inputClass} ${errors.amount ? errorInputClass : ""}`}
+                      {...register("amount", { valueAsNumber: true })}
+                    />
+                  </FormField>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <FormField
+                    label="Payment ID"
+                    htmlFor="payment_id"
+                    required
+                    hint="Transaction reference (Razorpay, Stripe, UPI, etc.)"
+                    error={errors.payment_id?.message}
+                  >
+                    <input
+                      id="payment_id"
+                      type="text"
+                      autoComplete="off"
+                      className={`${inputClass} ${errors.payment_id ? errorInputClass : ""}`}
+                      {...register("payment_id")}
+                    />
+                  </FormField>
+
+                  <FormField
+                    label="Collection in INR"
+                    htmlFor="amount_inr"
+                    required
+                    hint="Converted amount in ₹"
+                    error={errors.amount_inr?.message}
+                  >
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ss-ink-500 font-semibold">
+                        ₹
+                      </span>
+                      <input
+                        id="amount_inr"
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        className={`${inputClass} pl-8 ${errors.amount_inr ? errorInputClass : ""}`}
+                        {...register("amount_inr", { valueAsNumber: true })}
+                      />
+                    </div>
                   </FormField>
                 </div>
 
@@ -354,9 +504,9 @@ export default function SalesFormPage() {
                 </FormField>
               </Subsection>
 
-              {/* Sub-section 4 */}
+              {/* Section 4: Internal */}
               <Subsection
-                title="Internal"
+                title="4. Internal"
                 description="For our records and the assignment flow."
               >
                 <div className="grid md:grid-cols-2 gap-4">
@@ -372,6 +522,37 @@ export default function SalesFormPage() {
                       className={`${inputClass} ${errors.sales_agent ? errorInputClass : ""}`}
                       {...register("sales_agent")}
                     />
+                  </FormField>
+
+                  <FormField
+                    label="Sale type"
+                    htmlFor="sale_type"
+                    required
+                    error={errors.sale_type?.message}
+                  >
+                    <div role="radiogroup" className="flex flex-wrap gap-2">
+                      {SALE_TYPES.map((opt) => {
+                        const selected = saleType === opt;
+                        return (
+                          <label
+                            key={opt}
+                            className={`cursor-pointer px-4 py-2 rounded-full border-2 font-semibold text-sm transition ${
+                              selected
+                                ? "bg-ss-orange-500 text-white border-ss-orange-500"
+                                : "bg-white text-ss-ink-700 border-ss-ink-300 hover:border-ss-orange-400"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              value={opt}
+                              className="sr-only"
+                              {...register("sale_type")}
+                            />
+                            {opt}
+                          </label>
+                        );
+                      })}
+                    </div>
                   </FormField>
 
                   <FormField
@@ -400,7 +581,11 @@ export default function SalesFormPage() {
                   <FormField
                     label="Demo session tutor"
                     htmlFor="demo_tutor"
-                    required
+                    hint={
+                      saleWithoutDemo === "Yes"
+                        ? "Optional — sale was without a demo"
+                        : "Optional"
+                    }
                     error={errors.demo_tutor?.message}
                   >
                     <input
@@ -414,6 +599,7 @@ export default function SalesFormPage() {
                   <FormField
                     label="Preferred class timing (parent's note)"
                     htmlFor="preferred_timing"
+                    className="md:col-span-2"
                     error={errors.preferred_timing?.message}
                   >
                     <input
@@ -475,6 +661,37 @@ function Subsection({
   );
 }
 
+function YesNoPills({
+  value,
+  onPick,
+}: {
+  value: "Yes" | "No" | undefined;
+  onPick: (v: "Yes" | "No") => void;
+}) {
+  return (
+    <div className="flex gap-2">
+      {(["Yes", "No"] as const).map((opt) => {
+        const selected = value === opt;
+        return (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => onPick(opt)}
+            aria-pressed={selected}
+            className={`px-5 py-2 rounded-full border-2 font-semibold text-sm transition min-w-[72px] ${
+              selected
+                ? "bg-ss-orange-500 text-white border-ss-orange-500"
+                : "bg-white text-ss-ink-700 border-ss-ink-300 hover:border-ss-orange-400"
+            }`}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function FilePicker({
   file,
   error,
@@ -524,10 +741,12 @@ function FilePicker({
 
 function SuccessCard({
   parentName,
+  studentName,
   magicToken,
   onReset,
 }: {
   parentName: string;
+  studentName: string;
   magicToken: string;
   onReset: () => void;
 }) {
@@ -541,7 +760,8 @@ function SuccessCard({
           Sent! 👏
         </h2>
         <p className="text-ss-ink-700 text-base">
-          {parentName} will get a WhatsApp + email in a few seconds.
+          {parentName} will get a WhatsApp + email for {studentName} in a few
+          seconds.
         </p>
       </div>
       <div className="rounded-xl bg-ss-bg-50 border border-ss-ink-200 px-4 py-3 text-sm text-ss-ink-500">
@@ -563,6 +783,12 @@ function SuccessCard({
           className="px-5 py-3 rounded-full border-2 border-ss-orange-500 text-ss-orange-600 font-semibold hover:bg-ss-orange-50 transition"
         >
           Preview parent page
+        </Link>
+        <Link
+          href="/enrollments"
+          className="px-5 py-3 rounded-full border-2 border-ss-ink-300 text-ss-ink-700 font-semibold hover:bg-ss-ink-100 transition"
+        >
+          All enrollments
         </Link>
       </div>
     </div>

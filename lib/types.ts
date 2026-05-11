@@ -75,7 +75,7 @@ export const COURSES = [
   "Chess",
 ] as const;
 
-export const CURRENCIES = ["INR", "GBP", "USD", "AUD", "NZD"] as const;
+export const CURRENCIES = ["INR", "GBP", "USD", "CAD"] as const;
 
 export const LEAD_SOURCES = [
   "Instagram",
@@ -88,7 +88,18 @@ export const LEAD_SOURCES = [
 
 export const SALE_TYPES = ["New sale", "Cross sale"] as const;
 
+export const ENROLLMENT_TYPES = [
+  "Monthly",
+  "Quarterly",
+  "Annual",
+  "Custom",
+] as const;
+
+export const CLASSES_SOLD_MONTHLY_OPTIONS = [4, 6, 8, 10, 12] as const;
+
 export type Course = (typeof COURSES)[number];
 export type Currency = (typeof CURRENCIES)[number];
 export type LeadSource = (typeof LEAD_SOURCES)[number];
 export type SaleType = (typeof SALE_TYPES)[number];
+export type EnrollmentType = (typeof ENROLLMENT_TYPES)[number];
+export type ClassesSoldMonthly = (typeof CLASSES_SOLD_MONTHLY_OPTIONS)[number];
