@@ -25,7 +25,8 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
           rel="stylesheet"
         />
-        <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+        <link rel="icon" href="/logo.webp" type="image/webp" />
+        <link rel="apple-touch-icon" href="/logo.webp" />
       </head>
       <body className="bg-ss-bg-50 text-ss-ink-700">
         {children}
