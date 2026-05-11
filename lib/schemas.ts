@@ -5,6 +5,7 @@ import {
   CURRENCIES,
   ENROLLMENT_TYPES,
   LEAD_SOURCES,
+  PAYMENT_MODES,
   SALE_TYPES,
 } from "./types";
 
@@ -78,6 +79,9 @@ export const enrollmentSchema = z.object({
   amount_inr: z
     .number({ invalid_type_error: "Enter INR equivalent" })
     .min(0, "Amount can't be negative"),
+  payment_mode: z.enum(PAYMENT_MODES, {
+    errorMap: () => ({ message: "Pick payment mode" }),
+  }),
   payment_screenshot: fileSchema,
 
   // Section 4: Internal (still needed for ops + meet)

@@ -20,6 +20,7 @@ import {
   CURRENCIES,
   ENROLLMENT_TYPES,
   LEAD_SOURCES,
+  PAYMENT_MODES,
   SALE_TYPES,
 } from "@/lib/types";
 import { enrollmentSchema, type EnrollmentFormValues } from "@/lib/schemas";
@@ -593,6 +594,29 @@ export default function SalesFormPage() {
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <FormField
+                    label="Mode of payment"
+                    htmlFor="payment_mode"
+                    required
+                    error={errors.payment_mode?.message}
+                  >
+                    <select
+                      id="payment_mode"
+                      defaultValue=""
+                      className={`${selectClass} ${errors.payment_mode ? errorInputClass : ""}`}
+                      {...register("payment_mode")}
+                    >
+                      <option value="" disabled>
+                        Pick payment mode
+                      </option>
+                      {PAYMENT_MODES.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+
+                  <FormField
                     label="Payment ID"
                     htmlFor="payment_id"
                     required
@@ -613,6 +637,7 @@ export default function SalesFormPage() {
                     htmlFor="amount_inr"
                     required
                     hint="Converted amount in ₹"
+                    className="md:col-span-2"
                     error={errors.amount_inr?.message}
                   >
                     <div className="relative">

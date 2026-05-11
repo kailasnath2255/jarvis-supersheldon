@@ -100,22 +100,22 @@ export const COURSES = [
 export const CURRENCIES = ["INR", "GBP", "USD", "AUD", "NZD"] as const;
 
 export const LEAD_SOURCES = [
-  "Instagram",
-  "Facebook",
-  "Google Ads",
+  "Pre sales team",
+  "DSA",
+  "Performance marketing",
   "Referral",
-  "Website",
-  "Other",
 ] as const;
 
 export const SALE_TYPES = ["New sale", "Cross sale"] as const;
 
 export const ENROLLMENT_TYPES = [
-  "Monthly",
-  "Quarterly",
-  "Annual",
-  "Custom",
+  "New Sale",
+  "Cross Sale on New enrollment",
+  "Cross Sale on existing student",
+  "Reactivation",
 ] as const;
+
+export const PAYMENT_MODES = ["UPI", "Card", "Online", "Others"] as const;
 
 export const CLASSES_SOLD_MONTHLY_OPTIONS = [4, 6, 8, 10, 12] as const;
 
@@ -124,4 +124,5 @@ export type Currency = (typeof CURRENCIES)[number];
 export type LeadSource = (typeof LEAD_SOURCES)[number];
 export type SaleType = (typeof SALE_TYPES)[number];
 export type EnrollmentType = (typeof ENROLLMENT_TYPES)[number];
+export type PaymentMode = (typeof PAYMENT_MODES)[number];
 export type ClassesSoldMonthly = (typeof CLASSES_SOLD_MONTHLY_OPTIONS)[number];
