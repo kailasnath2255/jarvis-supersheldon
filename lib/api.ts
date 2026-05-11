@@ -5,6 +5,8 @@ import type {
   EnrollmentListItem,
   EnrollmentListResponse,
   EnrollmentSubmitResponse,
+  Student,
+  StudentListResponse,
   Tutor,
 } from "./types";
 
@@ -33,6 +35,73 @@ export async function listEnrollments(): Promise<EnrollmentListResponse> {
     throw new Error(`Failed to list enrollments (${res.status})`);
   }
   return (await res.json()) as EnrollmentListResponse;
+}
+
+export async function listStudents(): Promise<StudentListResponse> {
+  const url = process.env.NEXT_PUBLIC_N8N_LIST_STUDENTS_URL;
+  if (!isLive(url)) {
+    await wait(400);
+    return mockStudentsList();
+  }
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Failed to list students (${res.status})`);
+  }
+  return (await res.json()) as StudentListResponse;
+}
+
+function mockStudentsList(): StudentListResponse {
+  const students: Student[] = [
+    {
+      record_id: "rec_mock_s1",
+      student_id: "AUS-7733-Gawin",
+      name: "Gawin",
+      country: "AUS",
+      age: 12,
+      grade: "Grade 7",
+      parent_name: "Mr. Walker",
+      parent_email: "gawin.parent@example.com.au",
+      parent_whatsapp: "+61412345678",
+      interested_in: ["Maths", "Coding"],
+      demo_completed: true,
+      demo_tutor: "Priya Iyer",
+      demo_date: "",
+      notes: "Loves robotics.",
+    },
+    {
+      record_id: "rec_mock_s2",
+      student_id: "IND-1042-Aarav",
+      name: "Aarav",
+      country: "IND",
+      age: 10,
+      grade: "Grade 5",
+      parent_name: "Mrs. Sharma",
+      parent_email: "aarav.parent@example.in",
+      parent_whatsapp: "+919876543210",
+      interested_in: ["Maths", "Science"],
+      demo_completed: true,
+      demo_tutor: "Anand Kumar",
+      demo_date: "",
+      notes: "",
+    },
+    {
+      record_id: "rec_mock_s3",
+      student_id: "USA-5621-Brandon",
+      name: "Brandon",
+      country: "USA",
+      age: 14,
+      grade: "Grade 9",
+      parent_name: "Mr. Johnson",
+      parent_email: "brandon.parent@example.com",
+      parent_whatsapp: "+14155551234",
+      interested_in: ["Public Speaking"],
+      demo_completed: false,
+      demo_tutor: "",
+      demo_date: "",
+      notes: "Shy in group settings.",
+    },
+  ];
+  return { students, count: students.length };
 }
 
 function mockEnrollmentsList(): EnrollmentListResponse {

@@ -65,6 +65,28 @@ export type EnrollmentListResponse = {
   count: number;
 };
 
+export type Student = {
+  record_id: string;
+  student_id: string;
+  name: string;
+  country: string;
+  age: number | null;
+  grade: string;
+  parent_name: string;
+  parent_email: string;
+  parent_whatsapp: string;
+  interested_in: string[];
+  demo_completed: boolean;
+  demo_tutor: string;
+  demo_date: string;
+  notes: string;
+};
+
+export type StudentListResponse = {
+  students: Student[];
+  count: number;
+};
+
 export const COURSES = [
   "Maths",
   "English",

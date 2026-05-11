@@ -1,0 +1,103 @@
+{
+  "name": "Sheldon — 5. List Students",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "list-students",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "webhook-list-students",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300],
+      "webhookId": "sheldon-list-students"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "mode": "list",
+          "value": "app6o2dh6wgXwGYwr"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Students"
+        },
+        "sort": {
+          "property": [
+            { "field": "created_at", "direction": "desc" }
+          ]
+        },
+        "options": {
+          "limit": 200
+        }
+      },
+      "id": "airtable-list-students",
+      "name": "Airtable: List Students",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [440, 300],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1500
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Shape Student records for the frontend dropdown. Dedupes by record id.\nconst pickFields = (rec) => (rec && rec.fields) ? rec.fields : (rec || {});\nconst pickId = (rec) => (rec && (rec.id || rec.recordId)) || '';\n\nconst seen = new Map();\nfor (const item of $input.all()) {\n  const r = item.json;\n  const id = pickId(r);\n  if (id && !seen.has(id)) seen.set(id, r);\n}\nconst recs = [...seen.values()];\n\nconst students = recs\n  .map(r => {\n    const f = pickFields(r);\n    return {\n      record_id: pickId(r),\n      student_id: f.student_id || '',\n      name: f.name || '',\n      country: f.country || '',\n      age: Number(f.age) || null,\n      grade: f.grade || '',\n      parent_name: f.parent_name || '',\n      parent_email: f.parent_email || '',\n      parent_whatsapp: f.parent_whatsapp || '',\n      interested_in: Array.isArray(f.interested_in) ? f.interested_in : (f.interested_in ? [f.interested_in] : []),\n      demo_completed: !!f.demo_completed,\n      demo_tutor: f.demo_tutor || '',\n      demo_date: f.demo_date || '',\n      notes: f.notes || ''\n    };\n  })\n  .filter(s => s.student_id);\n\nreturn [{ json: { students, count: students.length } }];"
+      },
+      "id": "code-shape",
+      "name": "Shape response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Access-Control-Allow-Methods", "value": "GET, OPTIONS" },
+              { "name": "Access-Control-Allow-Headers", "value": "Content-Type" },
+              { "name": "Cache-Control", "value": "no-store" }
+            ]
+          }
+        }
+      },
+      "id": "respond-ok",
+      "name": "Respond: OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [880, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Airtable: List Students", "type": "main", "index": 0 }]] },
+    "Airtable: List Students": { "main": [[{ "node": "Shape response", "type": "main", "index": 0 }]] },
+    "Shape response": { "main": [[{ "node": "Respond: OK", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [{ "name": "sheldon" }]
+}

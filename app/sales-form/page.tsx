@@ -11,6 +11,8 @@ import { SectionHeader } from "@/components/shared/SectionHeader";
 import { FormField } from "@/components/shared/FormField";
 import { Logo } from "@/components/shared/Logo";
 import { MockBanner } from "@/components/shared/MockBanner";
+import { StudentPicker } from "@/components/shared/StudentPicker";
+import type { Student } from "@/lib/types";
 import {
   CLASSES_SOLD_MONTHLY_OPTIONS,
   COURSES,
@@ -74,7 +76,43 @@ export default function SalesFormPage() {
   const saleType = watch("sale_type");
   const saleWithoutDemo = watch("sale_without_demo");
   const isReferralLead = watch("is_referral_lead");
+  const studentIdValue = watch("student_id") || "";
   const screenshot = watch("payment_screenshot") as File | undefined;
+
+  function applyStudent(s: Student) {
+    setValue("student_id", s.student_id, { shouldValidate: true });
+    if (s.name) setValue("student_name", s.name, { shouldValidate: true });
+    if (s.parent_name)
+      setValue("parent_name", s.parent_name, { shouldValidate: true });
+    if (s.parent_email)
+      setValue("parent_email", s.parent_email, { shouldValidate: true });
+    if (s.parent_whatsapp)
+      setValue("parent_whatsapp", s.parent_whatsapp, {
+        shouldValidate: true,
+      });
+    if (s.demo_tutor)
+      setValue("demo_tutor", s.demo_tutor, { shouldValidate: true });
+    if (s.demo_completed === false) {
+      setValue("sale_without_demo", "Yes", { shouldValidate: true });
+    } else if (s.demo_completed === true) {
+      setValue("sale_without_demo", "No", { shouldValidate: true });
+    }
+    if (s.interested_in && s.interested_in.length > 0) {
+      const firstSubject = s.interested_in[0];
+      const COURSES_AS_STR = [
+        "Maths",
+        "English",
+        "Science",
+        "Coding",
+        "Public Speaking",
+        "Reasoning",
+        "Chess",
+      ];
+      if (COURSES_AS_STR.includes(firstSubject)) {
+        setValue("course", firstSubject as never, { shouldValidate: true });
+      }
+    }
+  }
 
   async function onSubmit(values: EnrollmentFormValues) {
     try {
@@ -172,17 +210,20 @@ export default function SalesFormPage() {
                   <FormField
                     label="Student ID"
                     htmlFor="student_id"
-                    hint="Auto-fills from Demo Form when available"
+                    hint="Pick from existing demo students — auto-fills name, parent, contact, demo tutor"
                     error={errors.student_id?.message}
+                    className="md:col-span-2"
                   >
-                    <input
+                    <StudentPicker
                       id="student_id"
-                      type="text"
-                      autoComplete="off"
-                      placeholder="e.g. SS-2026-0142"
-                      className={`${inputClass} ${errors.student_id ? errorInputClass : ""}`}
-                      {...register("student_id")}
+                      value={studentIdValue}
+                      invalid={!!errors.student_id}
+                      onChangeText={(t) =>
+                        setValue("student_id", t, { shouldValidate: false })
+                      }
+                      onPickStudent={applyStudent}
                     />
+                    <input type="hidden" {...register("student_id")} />
                   </FormField>
 
                   <FormField
