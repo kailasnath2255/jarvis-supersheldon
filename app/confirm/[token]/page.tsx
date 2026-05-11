@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   AlertCircle,
   Check,
@@ -463,9 +462,7 @@ function CelebrationCard({
       </a>
 
       <p className="text-xs text-ss-ink-500 pt-1">
-        <Link href="/" className="underline hover:text-ss-ink-700">
-          Back to home
-        </Link>
+        We&apos;ll see you in class. Reply to your WhatsApp if you need to reschedule.
       </p>
     </div>
   );
