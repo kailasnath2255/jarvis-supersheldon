@@ -200,7 +200,7 @@ function EnrollmentCard({ e }: { e: EnrollmentListItem }) {
 
   return (
     <Link
-      href={`/confirm/${e.magic_token}`}
+      href={`/enrollments/${e.magic_token}`}
       className="block bg-white rounded-2xl shadow-ss border border-ss-ink-200 p-5 hover:border-ss-orange-400 hover:shadow-ss-brand/40 transition group"
     >
       <div className="flex items-start justify-between gap-3 mb-3">

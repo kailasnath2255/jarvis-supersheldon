@@ -7,7 +7,6 @@ import {
   Check,
   CheckCircle2,
   Copy,
-  GraduationCap,
   Loader2,
   Sparkles,
 } from "lucide-react";
@@ -18,8 +17,15 @@ import { Logo } from "@/components/shared/Logo";
 import { MockBanner } from "@/components/shared/MockBanner";
 import { SkeletonCard } from "@/components/shared/LoadingState";
 import { getEnrollmentByToken, submitConfirmation } from "@/lib/api";
-import { formatAmount, formatLongSlot, formatSlot } from "@/lib/format";
-import type { ConfirmResponse, EnrollmentDetails, Tutor } from "@/lib/types";
+import { formatLongSlot, formatSlot } from "@/lib/format";
+import type { ConfirmResponse, EnrollmentDetails } from "@/lib/types";
+
+type FlatSlot = {
+  slot_id: string;
+  tutor_id: string;
+  tutor_name: string;
+  datetime: string;
+};
 
 type PageProps = { params: { token: string } };
 
@@ -33,7 +39,6 @@ export default function ConfirmPage({ params }: PageProps) {
   const { token } = params;
 
   const [state, setState] = useState<LoadState>({ kind: "loading" });
-  const [selectedTutorId, setSelectedTutorId] = useState<string | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -62,24 +67,38 @@ export default function ConfirmPage({ params }: PageProps) {
     };
   }, [token]);
 
-  const selectedTutor: Tutor | undefined = useMemo(() => {
-    if (state.kind !== "ready") return undefined;
-    return state.data.available_tutors.find((t) => t.id === selectedTutorId);
-  }, [state, selectedTutorId]);
+  const flatSlots: FlatSlot[] = useMemo(() => {
+    if (state.kind !== "ready") return [];
+    const all: FlatSlot[] = [];
+    for (const tutor of state.data.available_tutors) {
+      for (const slot of tutor.available_slots) {
+        all.push({
+          slot_id: slot.id,
+          tutor_id: tutor.id,
+          tutor_name: tutor.name,
+          datetime: slot.datetime,
+        });
+      }
+    }
+    return all.sort(
+      (a, b) =>
+        new Date(a.datetime).getTime() - new Date(b.datetime).getTime(),
+    );
+  }, [state]);
 
-  function pickTutor(id: string) {
-    setSelectedTutorId(id);
-    setSelectedSlotId(null);
-  }
+  const selectedSlot = useMemo(
+    () => flatSlots.find((s) => s.slot_id === selectedSlotId),
+    [flatSlots, selectedSlotId],
+  );
 
   async function lockItIn() {
-    if (!selectedTutorId || !selectedSlotId || !agreed) return;
+    if (!selectedSlot || !agreed) return;
     setSubmitting(true);
     try {
       const res = await submitConfirmation({
         magic_token: token,
-        selected_tutor_id: selectedTutorId,
-        selected_slot_id: selectedSlotId,
+        selected_tutor_id: selectedSlot.tutor_id,
+        selected_slot_id: selectedSlot.slot_id,
         agreement_accepted: true,
       });
       if (!res.success) throw new Error("Server returned success=false");
@@ -139,12 +158,11 @@ export default function ConfirmPage({ params }: PageProps) {
         {state.kind === "ready" && !confirmed ? (
           <ReadyView
             data={state.data}
-            selectedTutorId={selectedTutorId}
+            flatSlots={flatSlots}
+            selectedSlot={selectedSlot}
             selectedSlotId={selectedSlotId}
             agreed={agreed}
             submitting={submitting}
-            selectedTutor={selectedTutor}
-            onPickTutor={pickTutor}
             onPickSlot={setSelectedSlotId}
             onAgreeChange={setAgreed}
             onSubmit={lockItIn}
@@ -215,31 +233,28 @@ function ErrorView({
 
 function ReadyView(props: {
   data: EnrollmentDetails;
-  selectedTutorId: string | null;
+  flatSlots: FlatSlot[];
+  selectedSlot: FlatSlot | undefined;
   selectedSlotId: string | null;
   agreed: boolean;
   submitting: boolean;
-  selectedTutor: Tutor | undefined;
-  onPickTutor: (id: string) => void;
   onPickSlot: (id: string) => void;
   onAgreeChange: (v: boolean) => void;
   onSubmit: () => void;
 }) {
   const {
     data,
-    selectedTutorId,
+    flatSlots,
+    selectedSlot,
     selectedSlotId,
     agreed,
     submitting,
-    selectedTutor,
-    onPickTutor,
     onPickSlot,
     onAgreeChange,
     onSubmit,
   } = props;
 
-  const canSubmit =
-    !!selectedTutorId && !!selectedSlotId && agreed && !submitting;
+  const canSubmit = !!selectedSlotId && agreed && !submitting;
 
   return (
     <>
@@ -256,29 +271,12 @@ function ReadyView(props: {
         </p>
       </section>
 
-      {/* Section 1: Your purchase */}
-      <Card title="Your purchase">
-        <dl className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
-          <Detail label="Course" value={data.course} />
-          <Detail label="Classes" value={`${data.classes_count} sessions`} />
-          <Detail
-            label="Amount paid"
-            value={formatAmount(data.amount, data.currency)}
-          />
-          <Detail label="Demo tutor" value={data.demo_tutor} />
-        </dl>
-        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-50 text-ss-success text-xs font-semibold mt-4">
-          <Check className="h-3.5 w-3.5" aria-hidden="true" />
-          Payment confirmed
-        </span>
-      </Card>
-
-      {/* Section 2: What happens next */}
+      {/* What happens next */}
       <Card title="What happens next">
         <ol className="space-y-3 text-sm">
           {[
-            "You'll be assigned a tutor.",
-            "You'll pick a starting time.",
+            "Pick a starting time that works for you.",
+            "We'll match you with the right tutor for that slot.",
             "You'll get a Google Meet link by WhatsApp + email.",
             "Class begins.",
           ].map((step, i) => (
@@ -292,112 +290,39 @@ function ReadyView(props: {
         </ol>
       </Card>
 
-      {/* Section 3: Pick your tutor */}
-      <Card title="Pick your tutor">
-        {data.available_tutors.length === 0 ? (
+      {/* Pick a starting time — flat slot grid (tutor auto-assigned by slot) */}
+      <Card title="Pick a starting time">
+        {flatSlots.length === 0 ? (
           <EmptyState
-            icon={<GraduationCap className="h-6 w-6" aria-hidden="true" />}
+            icon={<Sparkles className="h-6 w-6" aria-hidden="true" />}
             label="Nothing here yet — add one."
           />
         ) : (
-          <ul className="space-y-3">
-            {data.available_tutors.map((tutor) => {
-              const selected = selectedTutorId === tutor.id;
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {flatSlots.map((slot) => {
+              const selected = selectedSlotId === slot.slot_id;
               return (
-                <li key={tutor.id}>
-                  <button
-                    type="button"
-                    onClick={() => onPickTutor(tutor.id)}
-                    aria-pressed={selected}
-                    className={`w-full text-left rounded-xl border-2 p-4 flex items-center gap-4 transition ${
-                      selected
-                        ? "border-ss-success bg-emerald-50/60"
-                        : "border-ss-ink-200 bg-white hover:border-ss-orange-400"
-                    }`}
-                  >
-                    <span
-                      className="flex-none inline-flex items-center justify-center h-12 w-12 rounded-full bg-ss-orange-500 text-white font-display font-extrabold text-lg"
-                      aria-hidden="true"
-                    >
-                      {tutor.name.charAt(0)}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-display font-bold text-ss-ink-900">
-                        {tutor.name}
-                      </p>
-                      <div className="flex flex-wrap gap-1.5 mt-1.5">
-                        {tutor.subjects.map((s) => (
-                          <span
-                            key={s}
-                            className="px-2.5 py-0.5 rounded-full bg-ss-orange-50 text-ss-orange-700 text-xs font-semibold"
-                          >
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <span
-                      className={`flex-none inline-flex items-center justify-center h-9 px-3 rounded-full text-sm font-semibold transition ${
-                        selected
-                          ? "bg-ss-success text-white"
-                          : "border-2 border-ss-orange-500 text-ss-orange-600"
-                      }`}
-                    >
-                      {selected ? (
-                        <>
-                          <Check
-                            className="h-4 w-4 mr-1"
-                            aria-hidden="true"
-                          />
-                          Chosen
-                        </>
-                      ) : (
-                        "Choose"
-                      )}
-                    </span>
-                  </button>
-                </li>
+                <button
+                  key={slot.slot_id}
+                  type="button"
+                  onClick={() => onPickSlot(slot.slot_id)}
+                  aria-pressed={selected}
+                  className={`px-3 py-2.5 rounded-xl text-sm font-semibold border-2 transition min-h-[44px] ${
+                    selected
+                      ? "bg-ss-orange-500 text-white border-ss-orange-500"
+                      : "bg-white text-ss-ink-700 border-ss-ink-300 hover:border-ss-orange-400"
+                  }`}
+                >
+                  {formatSlot(slot.datetime)}
+                </button>
               );
             })}
-          </ul>
+          </div>
         )}
       </Card>
 
-      {/* Section 4: Pick a starting time */}
-      {selectedTutor ? (
-        <Card title="Pick a starting time">
-          {selectedTutor.available_slots.length === 0 ? (
-            <EmptyState
-              icon={<Sparkles className="h-6 w-6" aria-hidden="true" />}
-              label="Nothing here yet — add one."
-            />
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {selectedTutor.available_slots.map((slot) => {
-                const selected = selectedSlotId === slot.id;
-                return (
-                  <button
-                    key={slot.id}
-                    type="button"
-                    onClick={() => onPickSlot(slot.id)}
-                    aria-pressed={selected}
-                    className={`px-3 py-2.5 rounded-full text-sm font-semibold border-2 transition min-h-[44px] ${
-                      selected
-                        ? "bg-ss-orange-500 text-white border-ss-orange-500"
-                        : "bg-white text-ss-ink-700 border-ss-ink-300 hover:border-ss-orange-400"
-                    }`}
-                  >
-                    {formatSlot(slot.datetime)}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </Card>
-      ) : null}
-
       {/* Final: agreement + submit */}
-      {selectedTutor && selectedSlotId ? (
+      {selectedSlot ? (
         <Card title="One last thing">
           <label className="flex items-start gap-3 cursor-pointer">
             <input
@@ -446,17 +371,6 @@ function Card({
       </h2>
       {children}
     </section>
-  );
-}
-
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-xs uppercase tracking-wide font-semibold text-ss-ink-500">
-        {label}
-      </dt>
-      <dd className="text-ss-ink-900 font-semibold mt-0.5">{value}</dd>
-    </div>
   );
 }
 

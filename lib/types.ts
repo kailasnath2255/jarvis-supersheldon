@@ -44,18 +44,44 @@ export type ConfirmResponse = {
 export type EnrollmentListItem = {
   enrollment_id: string;
   magic_token: string;
+  // Student
+  student_id: string;
+  sale_without_demo: boolean;
   student_name: string;
   parent_name: string;
+  parent_whatsapp: string;
+  parent_email: string;
+  specific_requirement: string;
+  is_referral_lead: boolean;
+  // Enrollment
+  date_of_enrollment: string;
+  type_of_enrollment: string;
   course: string;
   classes_count: number;
-  amount: number;
+  classes_sold_monthly: number;
+  // Payment
   currency: string;
-  status: string;
+  amount: number;
+  payment_id: string;
+  amount_inr: number;
+  payment_mode: string;
+  // Internal
   sales_agent: string;
+  sale_type: string;
+  lead_source: string;
+  demo_tutor: string;
+  preferred_timing: string;
+  // Multi-batch
+  has_additional_enrollments: boolean;
+  additional_type: string;
+  additional_enrollments_json: string;
+  // Status
+  status: string;
   whatsapp_sent: boolean;
   email_sent: boolean;
   parent_confirmed: boolean;
   meet_created: boolean;
+  selected_slot_datetime: string;
   meet_link: string;
   created_at: string;
 };
